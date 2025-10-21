@@ -16,8 +16,18 @@ const SafeHarborComplianceSystem = () => {
       siteControl: true,
       permits: "Building Permit Submitted",
       estimatedPIS: "2028-06-30",
-      group: 2, // Assigned to Group 2
-      physicalWorkBy726: true
+      group: 2,
+      physicalWorkBy726: true,
+      itcCompliance: {
+        bocQualified: true,
+        prevailingWage: true,
+        apprenticeship: true,
+        domesticContent: false,
+        domesticContentPercentage: 0,
+        energyCommunity: false,
+        laborStandardsRegistered: true,
+        continuousConstruction: true
+      }
     }
   ]);
   const [selectedProject, setSelectedProject] = useState(null);
@@ -70,6 +80,461 @@ const SafeHarborComplianceSystem = () => {
     date.setFullYear(date.getFullYear() + 4);
     date.setMonth(11, 31); // December 31st of that year
     return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  };
+
+  // ITC Compliance Component
+  const ITCCompliance = () => {
+    const [selectedProjectForITC, setSelectedProjectForITC] = useState(projects[0] || null);
+
+    const calculateITCRate = (project) => {
+      if (!project?.itcCompliance) return { rate: 0, details: [] };
+      
+      let baseRate = 6; // Base ITC without labor standards
+      let bonusRate = 0;
+      let details = [];
+
+      // Labor standards boost (prevailing wage + apprenticeship)
+      if (project.itcCompliance.prevailingWage && project.itcCompliance.apprenticeship) {
+        baseRate = 30;
+        details.push("Base ITC: 30% (with labor standards)");
+      } else {
+        details.push("Base ITC: 6% (without labor standards)");
+      }
+
+      // Domestic content bonus (10%)
+      if (project.itcCompliance.domesticContent) {
+        bonusRate += 10;
+        details.push("Domestic Content Bonus: +10%");
+      }
+
+      // Energy community bonus (10%)
+      if (project.itcCompliance.energyCommunity) {
+        bonusRate += 10;
+        details.push("Energy Community Bonus: +10%");
+      }
+
+      const totalRate = baseRate + bonusRate;
+      details.push(`TOTAL ITC RATE: ${totalRate}%`);
+
+      return { rate: totalRate, details, baseRate, bonusRate };
+    };
+
+    const getComplianceStatus = (project) => {
+      if (!project?.itcCompliance) return { status: 'Unknown', color: 'gray', issues: [] };
+      
+      const c = project.itcCompliance;
+      const issues = [];
+
+      if (!c.bocQualified) issues.push("BOC not qualified");
+      if (!c.prevailingWage) issues.push("Prevailing wage not met");
+      if (!c.apprenticeship) issues.push("Apprenticeship not met");
+      if (!c.laborStandardsRegistered && (c.prevailingWage || c.apprenticeship)) {
+        issues.push("Not registered with IRS for labor standards");
+      }
+      if (!c.continuousConstruction) issues.push("Continuous construction at risk");
+
+      // Check group-specific issues
+      const percentage = calculateSafeHarborPercentage(project.allocatedCost, project.totalCost);
+      if (parseFloat(percentage) < 5.0) issues.push("Below 5% safe harbor threshold");
+
+      if (issues.length === 0) {
+        return { status: 'Compliant', color: 'green', issues: [] };
+      } else if (issues.length <= 2) {
+        return { status: 'At Risk', color: 'amber', issues };
+      } else {
+        return { status: 'Non-Compliant', color: 'red', issues };
+      }
+    };
+
+    const updateProjectCompliance = (projectId, field, value) => {
+      setProjects(projects.map(p => {
+        if (p.id === projectId) {
+          return {
+            ...p,
+            itcCompliance: {
+              ...p.itcCompliance,
+              [field]: value
+            }
+          };
+        }
+        return p;
+      }));
+      
+      // Update selected project if it's the one being edited
+      if (selectedProjectForITC?.id === projectId) {
+        setSelectedProjectForITC({
+          ...selectedProjectForITC,
+          itcCompliance: {
+            ...selectedProjectForITC.itcCompliance,
+            [field]: value
+          }
+        });
+      }
+    };
+
+    const itcRate = selectedProjectForITC ? calculateITCRate(selectedProjectForITC) : null;
+    const complianceStatus = selectedProjectForITC ? getComplianceStatus(selectedProjectForITC) : null;
+
+    return (
+      <div className="space-y-6">
+        <div className="bg-gradient-to-r from-green-600 to-green-700 p-6 rounded-lg shadow-md text-white">
+          <h3 className="text-2xl font-bold mb-2">ITC Compliance Tracker</h3>
+          <p className="text-green-100">Monitor Investment Tax Credit requirements and maximize credit rates</p>
+        </div>
+
+        {/* Portfolio Overview */}
+        <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+          <h4 className="text-lg font-bold text-gray-900 mb-4">Portfolio ITC Status</h4>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            {[
+              { 
+                label: "Fully Compliant", 
+                count: projects.filter(p => getComplianceStatus(p).status === 'Compliant').length,
+                color: "green"
+              },
+              { 
+                label: "At Risk", 
+                count: projects.filter(p => getComplianceStatus(p).status === 'At Risk').length,
+                color: "amber"
+              },
+              { 
+                label: "Non-Compliant", 
+                count: projects.filter(p => getComplianceStatus(p).status === 'Non-Compliant').length,
+                color: "red"
+              },
+              { 
+                label: "Average ITC Rate", 
+                count: `${(projects.reduce((sum, p) => sum + calculateITCRate(p).rate, 0) / projects.length).toFixed(1)}%`,
+                color: "blue"
+              }
+            ].map((stat, idx) => (
+              <div key={idx} className={`p-4 rounded-lg border-2 bg-${stat.color}-50 border-${stat.color}-200`}>
+                <p className={`text-sm font-medium text-${stat.color}-700`}>{stat.label}</p>
+                <p className={`text-3xl font-bold text-${stat.color}-900`}>{stat.count}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Project</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Group</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">ITC Rate</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Status</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {projects.map(project => {
+                  const rate = calculateITCRate(project);
+                  const status = getComplianceStatus(project);
+                  
+                  return (
+                    <tr key={project.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900">{project.name}</td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-1 text-xs font-semibold rounded border ${
+                          project.group === 1 || project.group === 2 ? 'bg-green-100 text-green-800 border-green-300' :
+                          project.group === 3 ? 'bg-red-100 text-red-800 border-red-300' :
+                          'bg-gray-800 text-white border-gray-900'
+                        }`}>
+                          Group {project.group}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <span className="font-bold text-green-600">{rate.rate}%</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-1 text-xs font-semibold rounded bg-${status.color}-100 text-${status.color}-800`}>
+                          {status.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={() => setSelectedProjectForITC(project)}
+                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                        >
+                          Manage Compliance
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Detailed Compliance Management */}
+        {selectedProjectForITC && (
+          <>
+            <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h4 className="text-xl font-bold text-gray-900">{selectedProjectForITC.name}</h4>
+                  <p className="text-sm text-gray-600">{selectedProjectForITC.capacity} MW • {selectedProjectForITC.location}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-gray-600">Projected ITC Rate</p>
+                  <p className="text-4xl font-bold text-green-600">{itcRate.rate}%</p>
+                  <p className="text-xs text-gray-500 mt-1">on ${(selectedProjectForITC.totalCost / 1000000).toFixed(1)}M project</p>
+                </div>
+              </div>
+
+              {/* ITC Rate Breakdown */}
+              <div className="mb-6 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500">
+                <h5 className="font-semibold text-blue-900 mb-2">ITC Rate Calculation</h5>
+                <div className="space-y-1">
+                  {itcRate.details.map((detail, idx) => (
+                    <p key={idx} className={`text-sm ${idx === itcRate.details.length - 1 ? 'font-bold text-blue-900' : 'text-blue-800'}`}>
+                      {detail}
+                    </p>
+                  ))}
+                </div>
+                <p className="text-sm text-blue-900 mt-3 font-semibold">
+                  Projected Credit Value: ${((selectedProjectForITC.totalCost * itcRate.rate / 100) / 1000000).toFixed(2)}M
+                </p>
+              </div>
+
+              {/* Compliance Status */}
+              {complianceStatus.issues.length > 0 && (
+                <div className={`mb-6 p-4 bg-${complianceStatus.color}-50 rounded-lg border-l-4 border-${complianceStatus.color}-500`}>
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className={`text-${complianceStatus.color}-600 flex-shrink-0 mt-0.5`} size={20} />
+                    <div>
+                      <h5 className={`font-semibold text-${complianceStatus.color}-900 mb-2`}>Compliance Issues</h5>
+                      <ul className="space-y-1">
+                        {complianceStatus.issues.map((issue, idx) => (
+                          <li key={idx} className={`text-sm text-${complianceStatus.color}-800`}>• {issue}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Compliance Checklist */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* BOC Qualification */}
+                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <h5 className="font-semibold text-gray-900">Beginning of Construction</h5>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedProjectForITC.itcCompliance.bocQualified}
+                        onChange={(e) => updateProjectCompliance(selectedProjectForITC.id, 'bocQualified', e.target.checked)}
+                        className="w-5 h-5"
+                      />
+                      <span className={`text-sm font-medium ${selectedProjectForITC.itcCompliance.bocQualified ? 'text-green-600' : 'text-gray-400'}`}>
+                        {selectedProjectForITC.itcCompliance.bocQualified ? 'Qualified' : 'Not Qualified'}
+                      </span>
+                    </label>
+                  </div>
+                  <p className="text-xs text-gray-600">
+                    5% safe harbor met or physical work test satisfied by applicable deadline
+                  </p>
+                </div>
+
+                {/* Prevailing Wage */}
+                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <h5 className="font-semibold text-gray-900">Prevailing Wage</h5>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedProjectForITC.itcCompliance.prevailingWage}
+                        onChange={(e) => updateProjectCompliance(selectedProjectForITC.id, 'prevailingWage', e.target.checked)}
+                        className="w-5 h-5"
+                      />
+                      <span className={`text-sm font-medium ${selectedProjectForITC.itcCompliance.prevailingWage ? 'text-green-600' : 'text-gray-400'}`}>
+                        {selectedProjectForITC.itcCompliance.prevailingWage ? 'Compliant' : 'Not Met'}
+                      </span>
+                    </label>
+                  </div>
+                  <p className="text-xs text-gray-600">
+                    Required for 30% ITC rate (vs 6% base rate)
+                  </p>
+                </div>
+
+                {/* Apprenticeship */}
+                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <h5 className="font-semibold text-gray-900">Apprenticeship</h5>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedProjectForITC.itcCompliance.apprenticeship}
+                        onChange={(e) => updateProjectCompliance(selectedProjectForITC.id, 'apprenticeship', e.target.checked)}
+                        className="w-5 h-5"
+                      />
+                      <span className={`text-sm font-medium ${selectedProjectForITC.itcCompliance.apprenticeship ? 'text-green-600' : 'text-gray-400'}`}>
+                        {selectedProjectForITC.itcCompliance.apprenticeship ? 'Compliant' : 'Not Met'}
+                      </span>
+                    </label>
+                  </div>
+                  <p className="text-xs text-gray-600">
+                    Required for 30% ITC rate (15% labor hours from apprentices)
+                  </p>
+                </div>
+
+                {/* Labor Standards Registration */}
+                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <h5 className="font-semibold text-gray-900">IRS Registration</h5>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedProjectForITC.itcCompliance.laborStandardsRegistered}
+                        onChange={(e) => updateProjectCompliance(selectedProjectForITC.id, 'laborStandardsRegistered', e.target.checked)}
+                        className="w-5 h-5"
+                      />
+                      <span className={`text-sm font-medium ${selectedProjectForITC.itcCompliance.laborStandardsRegistered ? 'text-green-600' : 'text-gray-400'}`}>
+                        {selectedProjectForITC.itcCompliance.laborStandardsRegistered ? 'Registered' : 'Not Registered'}
+                      </span>
+                    </label>
+                  </div>
+                  <p className="text-xs text-gray-600">
+                    Pre-file registration with IRS for labor standards compliance
+                  </p>
+                </div>
+
+                {/* Domestic Content */}
+                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <h5 className="font-semibold text-gray-900">Domestic Content Bonus</h5>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedProjectForITC.itcCompliance.domesticContent}
+                        onChange={(e) => updateProjectCompliance(selectedProjectForITC.id, 'domesticContent', e.target.checked)}
+                        className="w-5 h-5"
+                      />
+                      <span className={`text-sm font-medium ${selectedProjectForITC.itcCompliance.domesticContent ? 'text-green-600' : 'text-gray-400'}`}>
+                        {selectedProjectForITC.itcCompliance.domesticContent ? '+10%' : 'Not Met'}
+                      </span>
+                    </label>
+                  </div>
+                  <p className="text-xs text-gray-600">
+                    100% domestic steel/iron + applicable % of total costs from US manufacturing
+                  </p>
+                  {selectedProjectForITC.itcCompliance.domesticContent && (
+                    <div className="mt-2">
+                      <label className="text-xs text-gray-700 font-medium">Domestic Content %:</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={selectedProjectForITC.itcCompliance.domesticContentPercentage || 0}
+                        onChange={(e) => updateProjectCompliance(selectedProjectForITC.id, 'domesticContentPercentage', parseFloat(e.target.value))}
+                        className="w-full mt-1 px-2 py-1 text-sm border border-gray-300 rounded"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Energy Community */}
+                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <h5 className="font-semibold text-gray-900">Energy Community Bonus</h5>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedProjectForITC.itcCompliance.energyCommunity}
+                        onChange={(e) => updateProjectCompliance(selectedProjectForITC.id, 'energyCommunity', e.target.checked)}
+                        className="w-5 h-5"
+                      />
+                      <span className={`text-sm font-medium ${selectedProjectForITC.itcCompliance.energyCommunity ? 'text-green-600' : 'text-gray-400'}`}>
+                        {selectedProjectForITC.itcCompliance.energyCommunity ? '+10%' : 'Not Eligible'}
+                      </span>
+                    </label>
+                  </div>
+                  <p className="text-xs text-gray-600">
+                    Located in brownfield site, coal closure area, or qualifying census tract
+                  </p>
+                </div>
+
+                {/* Continuous Construction */}
+                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <h5 className="font-semibold text-gray-900">Continuous Construction</h5>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedProjectForITC.itcCompliance.continuousConstruction}
+                        onChange={(e) => updateProjectCompliance(selectedProjectForITC.id, 'continuousConstruction', e.target.checked)}
+                        className="w-5 h-5"
+                      />
+                      <span className={`text-sm font-medium ${selectedProjectForITC.itcCompliance.continuousConstruction ? 'text-green-600' : 'text-gray-400'}`}>
+                        {selectedProjectForITC.itcCompliance.continuousConstruction ? 'On Track' : 'At Risk'}
+                      </span>
+                    </label>
+                  </div>
+                  <p className="text-xs text-gray-600">
+                    Continuous efforts toward completion within 4-year safe harbor
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* ITC Requirements Guide */}
+            <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+              <h4 className="text-lg font-bold text-gray-900 mb-4">ITC Requirements Overview</h4>
+              
+              <div className="space-y-4">
+                <div className="p-4 bg-green-50 rounded-lg border-l-4 border-green-500">
+                  <h5 className="font-semibold text-green-900 mb-2">30% Base ITC (Maximized Rate)</h5>
+                  <p className="text-sm text-green-800 mb-2">To achieve 30% base rate, BOTH of these are required:</p>
+                  <ul className="text-sm text-green-800 space-y-1">
+                    <li>✓ Prevailing wage standards met throughout construction</li>
+                    <li>✓ Apprenticeship requirements (12.5-15% of labor hours)</li>
+                    <li>✓ Pre-file registration with IRS</li>
+                  </ul>
+                  <p className="text-xs text-green-700 mt-2 italic">
+                    Without BOTH requirements: Falls to 6% base rate (4-6% IRR reduction)
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500">
+                    <h5 className="font-semibold text-blue-900 mb-2">Domestic Content Bonus (+10%)</h5>
+                    <p className="text-sm text-blue-800 mb-2">Requirements vary by construction year:</p>
+                    <ul className="text-xs text-blue-800 space-y-1">
+                      <li>• 2025: 40% adjusted percentage</li>
+                      <li>• 2026: 45% adjusted percentage</li>
+                      <li>• 2027+: 55% adjusted percentage</li>
+                      <li>• 100% domestic steel and iron (all years)</li>
+                    </ul>
+                  </div>
+
+                  <div className="p-4 bg-purple-50 rounded-lg border-l-4 border-purple-500">
+                    <h5 className="font-semibold text-purple-900 mb-2">Energy Community Bonus (+10%)</h5>
+                    <p className="text-sm text-purple-800 mb-2">Project must be located in:</p>
+                    <ul className="text-xs text-purple-800 space-y-1">
+                      <li>• Brownfield site, OR</li>
+                      <li>• Census tract with coal mine/plant closure since 1999, OR</li>
+                      <li>• Metropolitan/non-metro area with historical fossil fuel employment</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-amber-50 rounded-lg border-l-4 border-amber-500">
+                  <h5 className="font-semibold text-amber-900 mb-2">Maximum ITC Rate: 50%</h5>
+                  <p className="text-sm text-amber-800">
+                    30% Base (with labor standards) + 10% Domestic Content + 10% Energy Community = <span className="font-bold">50% ITC</span>
+                  </p>
+                  <p className="text-xs text-amber-700 mt-2">
+                    On an $8M project: 50% ITC = $4M in tax credits
+                  </p>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    );
   };
 
   // Portfolio Strategy Component
@@ -470,6 +935,7 @@ const SafeHarborComplianceSystem = () => {
                   <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Capacity</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Group</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Safe Harbor %</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">ITC Rate</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">BOC Track</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Status</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Actions</th>
@@ -480,6 +946,18 @@ const SafeHarborComplianceSystem = () => {
                   const percentage = parseFloat(calculateSafeHarborPercentage(project.allocatedCost, project.totalCost));
                   const track = determineBOCTrack(project.capacity, project.paymentDate);
                   const qualified = percentage >= 5.0;
+
+                  // Calculate ITC rate
+                  const calculateITCRateForProject = (p) => {
+                    if (!p?.itcCompliance) return 6;
+                    let rate = 6;
+                    if (p.itcCompliance.prevailingWage && p.itcCompliance.apprenticeship) rate = 30;
+                    if (p.itcCompliance.domesticContent) rate += 10;
+                    if (p.itcCompliance.energyCommunity) rate += 10;
+                    return rate;
+                  };
+
+                  const itcRate = calculateITCRateForProject(project);
 
                   const getGroupBadge = (groupId) => {
                     if (!groupId) return <span className="text-xs text-gray-400">Unassigned</span>;
@@ -504,6 +982,11 @@ const SafeHarborComplianceSystem = () => {
                       <td className="px-4 py-3 text-sm">
                         <span className={`font-semibold ${qualified ? 'text-green-600' : 'text-red-600'}`}>
                           {percentage.toFixed(2)}%
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <span className={`font-bold ${itcRate >= 40 ? 'text-green-600' : itcRate >= 30 ? 'text-blue-600' : 'text-amber-600'}`}>
+                          {itcRate}%
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-700">{track.track}</td>
@@ -615,10 +1098,20 @@ const SafeHarborComplianceSystem = () => {
         const newProject = {
           ...projectData,
           id: projects.length + 1,
-          group: projectGroup?.id
+          group: projectGroup?.id,
+          itcCompliance: {
+            bocQualified: parseFloat(percentage) >= 5.0,
+            prevailingWage: false,
+            apprenticeship: false,
+            domesticContent: false,
+            domesticContentPercentage: 0,
+            energyCommunity: false,
+            laborStandardsRegistered: false,
+            continuousConstruction: true
+          }
         };
         setProjects([...projects, newProject]);
-        alert(`Project added successfully and assigned to ${projectGroup?.name}!`);
+        alert(`Project added successfully and assigned to ${projectGroup?.name}! Configure ITC compliance in the ITC Compliance tab.`);
       }
     };
 
@@ -1194,10 +1687,10 @@ Date: _______________              Date: _______________
           <p className="text-gray-600">IRS-compliant documentation for renewable energy projects</p>
         </div>
 
-        <div className="mb-6 bg-white rounded-lg shadow-md p-1 flex gap-1">
+        <div className="mb-6 bg-white rounded-lg shadow-md p-1 flex flex-wrap gap-1">
           <button
             onClick={() => setActiveTab('dashboard')}
-            className={`flex-1 px-4 py-3 rounded-md font-semibold transition-colors ${
+            className={`flex-1 min-w-[120px] px-3 py-3 rounded-md font-semibold transition-colors text-sm ${
               activeTab === 'dashboard'
                 ? 'bg-blue-600 text-white'
                 : 'text-gray-700 hover:bg-gray-100'
@@ -1207,7 +1700,7 @@ Date: _______________              Date: _______________
           </button>
           <button
             onClick={() => setActiveTab('portfolio')}
-            className={`flex-1 px-4 py-3 rounded-md font-semibold transition-colors ${
+            className={`flex-1 min-w-[120px] px-3 py-3 rounded-md font-semibold transition-colors text-sm ${
               activeTab === 'portfolio'
                 ? 'bg-blue-600 text-white'
                 : 'text-gray-700 hover:bg-gray-100'
@@ -1216,8 +1709,18 @@ Date: _______________              Date: _______________
             Portfolio Strategy
           </button>
           <button
+            onClick={() => setActiveTab('itc')}
+            className={`flex-1 min-w-[120px] px-3 py-3 rounded-md font-semibold transition-colors text-sm ${
+              activeTab === 'itc'
+                ? 'bg-blue-600 text-white'
+                : 'text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            ITC Compliance
+          </button>
+          <button
             onClick={() => setActiveTab('calculator')}
-            className={`flex-1 px-4 py-3 rounded-md font-semibold transition-colors ${
+            className={`flex-1 min-w-[120px] px-3 py-3 rounded-md font-semibold transition-colors text-sm ${
               activeTab === 'calculator'
                 ? 'bg-blue-600 text-white'
                 : 'text-gray-700 hover:bg-gray-100'
@@ -1227,7 +1730,7 @@ Date: _______________              Date: _______________
           </button>
           <button
             onClick={() => setActiveTab('contract')}
-            className={`flex-1 px-4 py-3 rounded-md font-semibold transition-colors ${
+            className={`flex-1 min-w-[120px] px-3 py-3 rounded-md font-semibold transition-colors text-sm ${
               activeTab === 'contract'
                 ? 'bg-blue-600 text-white'
                 : 'text-gray-700 hover:bg-gray-100'
@@ -1237,19 +1740,20 @@ Date: _______________              Date: _______________
           </button>
           <button
             onClick={() => setActiveTab('guidance')}
-            className={`flex-1 px-4 py-3 rounded-md font-semibold transition-colors ${
+            className={`flex-1 min-w-[120px] px-3 py-3 rounded-md font-semibold transition-colors text-sm ${
               activeTab === 'guidance'
                 ? 'bg-blue-600 text-white'
                 : 'text-gray-700 hover:bg-gray-100'
             }`}
           >
-            Compliance Guide
+            Guide
           </button>
         </div>
 
         <div>
           {activeTab === 'dashboard' && <Dashboard />}
           {activeTab === 'portfolio' && <PortfolioStrategy />}
+          {activeTab === 'itc' && <ITCCompliance />}
           {activeTab === 'calculator' && <Calculator />}
           {activeTab === 'contract' && <ContractGenerator />}
           {activeTab === 'guidance' && <Guidance />}
