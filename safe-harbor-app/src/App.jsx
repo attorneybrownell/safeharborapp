@@ -15,7 +15,9 @@ const SafeHarborComplianceSystem = () => {
       interconnectionStatus: "Conditional Approval",
       siteControl: true,
       permits: "Building Permit Submitted",
-      estimatedPIS: "2028-06-30"
+      estimatedPIS: "2028-06-30",
+      group: 2, // Assigned to Group 2
+      physicalWorkBy726: true
     }
   ]);
   const [selectedProject, setSelectedProject] = useState(null);
@@ -68,6 +70,298 @@ const SafeHarborComplianceSystem = () => {
     date.setFullYear(date.getFullYear() + 4);
     date.setMonth(11, 31); // December 31st of that year
     return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  };
+
+  // Portfolio Strategy Component
+  const PortfolioStrategy = () => {
+    const groups = [
+      {
+        id: 1,
+        name: "GROUP 1",
+        subtitle: "≤1.5 MW AC",
+        description: "Safe Harbor in 2025",
+        note: "Rooftop, small C&I",
+        riskLevel: "LOW RISK",
+        riskColor: "green",
+        actions: [
+          { text: "Pay ≥5% of total project cost by", highlight: "December 31, 2025", important: true },
+          { text: "Binding written contract with ≥5% liquidated damages", important: false },
+          { text: "Document delivery expectation (105 days) or take title/risk of loss", important: false }
+        ],
+        note2: "Physical construction can start anytime through 2029",
+        note3: "No additional BOC requirements",
+        outcomes: [
+          "BOC = 2025 (5% safe harbor)",
+          "FEOC Exempt",
+          "ITC/PTC Eligible",
+          "PIS Deadline: 12/31/2029"
+        ],
+        summary: "Single action achieves all benefits",
+        riskDetails: "Straightforward execution. No coordination between equipment purchase and construction schedule required."
+      },
+      {
+        id: 2,
+        name: "GROUP 2",
+        subtitle: "> 1.5 MW AC",
+        description: "Safe Harbor in 2025 With Physical Work by 7/4/26",
+        note: "Ground mount, large C&I, community solar",
+        riskLevel: "LOW RISK",
+        riskColor: "green",
+        actions: [
+          { text: "Action 1: Pay ≥5% by", highlight: "December 31, 2025", important: true },
+          { text: "Action 2: Initiate Physical Work by", highlight: "July 4, 2026", important: true }
+        ],
+        explanation: "Why two actions? Notice 2025-42 eliminated 5% safe harbor for ITC/PTC on projects >1.5MW",
+        physicalWork: "Foundation excavation, anchor bolts, concrete pads, racking installation",
+        outcomes: [
+          "FEOC BOC = 2025 (5% safe harbor)",
+          "ITC/PTC BOC = 2026 (physical work)",
+          "FEOC Exempt",
+          "ITC/PTC Eligible (30% credit)",
+          "PIS Deadline: 12/31/2029"
+        ],
+        summary: "Maximum value preservation",
+        riskDetails: "Requires coordination between equipment procurement and construction. Achievable with proper planning."
+      },
+      {
+        id: 3,
+        name: "GROUP 3",
+        subtitle: "> 1.5 MW AC",
+        description: "Safe Harbor in 2025 NO Physical Work by 7/4/26",
+        note: "Late-stage development, permitting delays",
+        riskLevel: "HIGH RISK",
+        riskColor: "red",
+        actions: [
+          { text: "Pay ≥5% by", highlight: "December 31, 2025", important: true },
+          { text: "Physical Work Test: NOT FEASIBLE by 7/4/26", important: false, warning: true }
+        ],
+        consequence: "Cannot establish ITC/PTC BOC. Project must reach PIS by December 31, 2027 to qualify for ITC, or ITC is permanently lost.",
+        outcomes: [
+          { text: "FEOC BOC = 2025 (5% safe harbor)", success: true },
+          { text: "ITC/PTC BOC = FAILED", danger: true },
+          { text: "FEOC Exempt (valuable for 2028 exit)", success: true },
+          { text: "ITC/PTC At Risk", warning: true },
+          { text: "PIS Deadline: 12/31/2027", danger: true }
+        ],
+        summary: "If ITC lost: ~4-6% IRR reduction",
+        riskDetails: [
+          "Compressed 2-year timeline to PIS",
+          "4-6% IRR reduction if ITC lost",
+          "Execution pressure on construction",
+          "FEOC exemption maintains long-term value"
+        ]
+      },
+      {
+        id: 4,
+        name: "GROUP 4",
+        subtitle: "ANY Size",
+        description: "NO Safe Harbor in 2025 Construction Start 2026/2027",
+        note: "Speculative projects, uncertain permitting, low confidence",
+        riskLevel: "VERY HIGH RISK",
+        riskColor: "black",
+        actions: [
+          { text: "DO NOT pay 5% in 2025 (conserve capital)", important: true },
+          { text: "Start physical construction in 2026 or 2027", important: false },
+          { text: "Source equipment with required non-FEOC content:", important: false }
+        ],
+        bocRequirements: [
+          { year: "2026 BOC:", requirement: "≥40% non-Chinese" },
+          { year: "2027 BOC:", requirement: "≥45% non-Chinese" }
+        ],
+        macrNote: "Document Material Assistance Cost Ratio (MACR) compliance at PIS",
+        equipmentChallenge: "~80% of solar modules are Chinese. Requires domestic sourcing strategy (higher cost, limited supply).",
+        outcomes: [
+          { text: "NO FEOC Exemption", danger: true },
+          { text: "Subject to 40-45% MACR at PIS", danger: true },
+          { text: "ITC/PTC Eligible (if proper BOC)", success: true },
+          { text: "Must use domestic content equipment", danger: true },
+          { text: "Equipment cost premium: +15-25%", danger: true }
+        ],
+        summary: "Total IRR reduction: ~6-10%",
+        summary2: "Projects may be economically unviable",
+        riskDetails: [
+          "Economic Viability Threatened:",
+          "Equipment costs +15-25%",
+          "Limited domestic supply (long lead times)",
+          "Unproven module performance",
+          "IRR reduction ~6-10%",
+          "May not justify development"
+        ]
+      }
+    ];
+
+    const getProjectsByGroup = (groupId) => {
+      return projects.filter(p => p.group === groupId);
+    };
+
+    return (
+      <div className="space-y-6">
+        <div className="bg-gradient-to-r from-purple-600 to-purple-700 p-6 rounded-lg shadow-md text-white">
+          <h3 className="text-2xl font-bold mb-2">TRP 75MW Portfolio Strategy: BOC & FEOC Compliance</h3>
+          <p className="text-purple-100">Strategic framework for managing different project compliance pathways</p>
+        </div>
+
+        {groups.map((group, index) => (
+          <div key={group.id} className="bg-white rounded-lg shadow-lg border-2 border-gray-200 overflow-hidden">
+            <div className={`p-6 ${group.riskColor === 'green' ? 'bg-green-50' : group.riskColor === 'red' ? 'bg-red-50' : 'bg-gray-900 text-white'}`}>
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                {/* Project Group Info */}
+                <div>
+                  <h4 className={`text-xl font-bold ${group.riskColor === 'black' ? 'text-white' : 'text-gray-900'}`}>{group.name}</h4>
+                  <p className={`text-lg font-semibold ${group.riskColor === 'black' ? 'text-gray-200' : 'text-gray-700'}`}>{group.subtitle}</p>
+                  <p className={`font-medium mt-1 ${group.riskColor === 'black' ? 'text-gray-300' : 'text-gray-800'}`}>{group.description}</p>
+                  {group.note && <p className={`text-sm italic mt-2 ${group.riskColor === 'black' ? 'text-gray-400' : 'text-gray-600'}`}>{group.note}</p>}
+                  
+                  {/* Assigned Projects */}
+                  {getProjectsByGroup(group.id).length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-gray-300">
+                      <p className={`text-sm font-semibold mb-2 ${group.riskColor === 'black' ? 'text-gray-300' : 'text-gray-700'}`}>Assigned Projects:</p>
+                      {getProjectsByGroup(group.id).map(p => (
+                        <div key={p.id} className={`text-xs ${group.riskColor === 'black' ? 'text-gray-400' : 'text-gray-600'}`}>• {p.name}</div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Actions Required */}
+                <div>
+                  <h5 className={`font-bold mb-3 ${group.riskColor === 'black' ? 'text-white' : 'text-gray-900'}`}>Actions Required</h5>
+                  <div className="space-y-2">
+                    {group.actions.map((action, idx) => (
+                      <div key={idx} className="flex items-start gap-2">
+                        <span className={`${group.riskColor === 'black' ? 'text-white' : 'text-gray-700'}`}>•</span>
+                        <p className={`text-sm ${group.riskColor === 'black' ? 'text-gray-200' : 'text-gray-700'}`}>
+                          {action.text} {action.highlight && <span className={`font-bold ${action.important ? 'bg-yellow-300 text-gray-900 px-1' : ''}`}>{action.highlight}</span>}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {group.explanation && (
+                    <div className={`mt-3 p-2 ${group.riskColor === 'black' ? 'bg-gray-800' : 'bg-white'} rounded text-xs`}>
+                      <p className={`font-semibold ${group.riskColor === 'black' ? 'text-gray-200' : 'text-gray-900'}`}>Why two actions?</p>
+                      <p className={group.riskColor === 'black' ? 'text-gray-300' : 'text-gray-700'}>{group.explanation}</p>
+                    </div>
+                  )}
+
+                  {group.physicalWork && (
+                    <div className={`mt-3 p-2 ${group.riskColor === 'black' ? 'bg-gray-800' : 'bg-white'} rounded text-xs`}>
+                      <p className={`font-semibold ${group.riskColor === 'black' ? 'text-gray-200' : 'text-gray-900'}`}>Physical work:</p>
+                      <p className={group.riskColor === 'black' ? 'text-gray-300' : 'text-gray-700'}>{group.physicalWork}</p>
+                    </div>
+                  )}
+
+                  {group.note2 && (
+                    <div className={`mt-3 p-2 ${group.riskColor === 'black' ? 'bg-gray-800' : 'bg-blue-50'} rounded text-xs border-l-2 border-blue-500`}>
+                      <p className={`italic ${group.riskColor === 'black' ? 'text-gray-300' : 'text-blue-900'}`}>{group.note2}</p>
+                      {group.note3 && <p className={`italic mt-1 ${group.riskColor === 'black' ? 'text-gray-300' : 'text-blue-900'}`}>{group.note3}</p>}
+                    </div>
+                  )}
+
+                  {group.consequence && (
+                    <div className="mt-3 p-3 bg-red-100 border-l-4 border-red-600 rounded text-xs">
+                      <p className="font-bold text-red-900">CONSEQUENCE:</p>
+                      <p className="text-red-800">{group.consequence}</p>
+                    </div>
+                  )}
+
+                  {group.bocRequirements && (
+                    <div className={`mt-3 space-y-1 ${group.riskColor === 'black' ? 'text-gray-300' : 'text-gray-700'}`}>
+                      {group.bocRequirements.map((req, idx) => (
+                        <div key={idx} className={`text-xs p-2 ${group.riskColor === 'black' ? 'bg-gray-800' : 'bg-white'} rounded border ${group.riskColor === 'black' ? 'border-gray-700' : 'border-gray-300'}`}>
+                          <span className="font-bold">{req.year}</span> {req.requirement}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {group.macrNote && (
+                    <p className={`text-xs mt-2 ${group.riskColor === 'black' ? 'text-gray-400' : 'text-gray-600'}`}>• {group.macrNote}</p>
+                  )}
+
+                  {group.equipmentChallenge && (
+                    <div className="mt-3 p-3 bg-amber-100 border-l-4 border-amber-600 rounded text-xs">
+                      <p className="font-bold text-amber-900">EQUIPMENT CHALLENGE:</p>
+                      <p className="text-amber-800">{group.equipmentChallenge}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Outcomes */}
+                <div>
+                  <h5 className={`font-bold mb-3 ${group.riskColor === 'black' ? 'text-white' : 'text-gray-900'}`}>Outcomes</h5>
+                  <div className="space-y-2">
+                    {group.outcomes.map((outcome, idx) => (
+                      <div key={idx} className="flex items-start gap-2">
+                        {typeof outcome === 'string' ? (
+                          <>
+                            <span className={group.riskColor === 'black' ? 'text-green-400' : 'text-green-600'}>✓</span>
+                            <p className={`text-sm ${group.riskColor === 'black' ? 'text-gray-200' : 'text-gray-700'}`}>{outcome}</p>
+                          </>
+                        ) : (
+                          <>
+                            <span className={outcome.success ? (group.riskColor === 'black' ? 'text-green-400' : 'text-green-600') : outcome.danger ? 'text-red-600' : 'text-amber-600'}>
+                              {outcome.success ? '✓' : outcome.danger ? '✗' : '△'}
+                            </span>
+                            <p className={`text-sm ${outcome.success ? (group.riskColor === 'black' ? 'text-gray-200' : 'text-gray-700') : outcome.danger ? 'text-red-700' : 'text-amber-700'} ${outcome.danger || outcome.warning ? 'font-semibold' : ''}`}>
+                              {outcome.text}
+                            </p>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className={`mt-4 p-3 ${group.riskColor === 'green' ? 'bg-green-100 border-green-300' : group.riskColor === 'red' ? 'bg-red-100 border-red-300' : 'bg-gray-800 border-gray-700'} border-2 rounded`}>
+                    <p className={`font-bold text-sm ${group.riskColor === 'green' ? 'text-green-900' : group.riskColor === 'red' ? 'text-red-900' : 'text-white'}`}>
+                      {group.summary}
+                    </p>
+                    {group.summary2 && (
+                      <p className={`text-sm mt-1 ${group.riskColor === 'black' ? 'text-gray-300' : 'text-gray-800'}`}>{group.summary2}</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Risk Level */}
+                <div>
+                  <div className={`p-4 rounded-lg ${group.riskColor === 'green' ? 'bg-white border-2 border-green-600' : group.riskColor === 'red' ? 'bg-black text-white' : 'bg-black text-white'} text-center`}>
+                    <h5 className={`font-bold text-lg ${group.riskColor === 'green' ? 'text-green-900' : 'text-white'}`}>{group.riskLevel}</h5>
+                  </div>
+
+                  <div className="mt-4">
+                    {typeof group.riskDetails === 'string' ? (
+                      <p className={`text-xs ${group.riskColor === 'black' ? 'text-gray-300' : 'text-gray-600'}`}>{group.riskDetails}</p>
+                    ) : (
+                      <>
+                        <p className={`text-xs font-bold mb-2 ${group.riskColor === 'black' ? 'text-white' : 'text-gray-900'}`}>{group.riskDetails[0]}</p>
+                        <ul className="space-y-1">
+                          {group.riskDetails.slice(1).map((detail, idx) => (
+                            <li key={idx} className={`text-xs ${group.riskColor === 'black' ? 'text-gray-300' : 'text-gray-600'}`}>• {detail}</li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+
+        <div className="bg-blue-50 border-l-4 border-blue-500 p-6 rounded">
+          <h4 className="font-bold text-blue-900 mb-2">Portfolio Classification Tool</h4>
+          <p className="text-sm text-blue-800 mb-4">
+            Use the Calculator tab to analyze individual projects and automatically assign them to the appropriate group based on capacity, timing, and feasibility assessments.
+          </p>
+          <button
+            onClick={() => setActiveTab('calculator')}
+            className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700"
+          >
+            Go to Calculator
+          </button>
+        </div>
+      </div>
+    );
   };
 
   // Dashboard Component
@@ -174,6 +468,7 @@ const SafeHarborComplianceSystem = () => {
                 <tr>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Project</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Capacity</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Group</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Safe Harbor %</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">BOC Track</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Status</th>
@@ -186,10 +481,26 @@ const SafeHarborComplianceSystem = () => {
                   const track = determineBOCTrack(project.capacity, project.paymentDate);
                   const qualified = percentage >= 5.0;
 
+                  const getGroupBadge = (groupId) => {
+                    if (!groupId) return <span className="text-xs text-gray-400">Unassigned</span>;
+                    const colors = {
+                      1: 'bg-green-100 text-green-800 border-green-300',
+                      2: 'bg-green-100 text-green-800 border-green-300',
+                      3: 'bg-red-100 text-red-800 border-red-300',
+                      4: 'bg-gray-800 text-white border-gray-900'
+                    };
+                    return (
+                      <span className={`px-2 py-1 text-xs font-semibold rounded border ${colors[groupId]}`}>
+                        Group {groupId}
+                      </span>
+                    );
+                  };
+
                   return (
                     <tr key={project.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 text-sm font-medium text-gray-900">{project.name}</td>
                       <td className="px-4 py-3 text-sm text-gray-700">{project.capacity} MW</td>
+                      <td className="px-4 py-3">{getGroupBadge(project.group)}</td>
                       <td className="px-4 py-3 text-sm">
                         <span className={`font-semibold ${qualified ? 'text-green-600' : 'text-red-600'}`}>
                           {percentage.toFixed(2)}%
@@ -237,7 +548,8 @@ const SafeHarborComplianceSystem = () => {
       interconnectionStatus: '',
       siteControl: false,
       permits: '',
-      estimatedPIS: ''
+      estimatedPIS: '',
+      physicalWorkBy726: false
     });
 
     const percentage = calculateSafeHarborPercentage(projectData.allocatedCost, projectData.totalCost);
@@ -246,21 +558,74 @@ const SafeHarborComplianceSystem = () => {
     const pisDeadline = calculatePISDeadline(projectData.paymentDate);
     const qualified = parseFloat(percentage) >= 5.0;
 
+    // Determine which group the project belongs to
+    const determineGroup = () => {
+      const paymentDate = new Date(projectData.paymentDate);
+      const dec31_2025 = new Date('2025-12-31');
+      const july4_2026 = new Date('2026-07-04');
+      
+      // Group 4: No safe harbor in 2025
+      if (paymentDate > dec31_2025) {
+        return {
+          id: 4,
+          name: "GROUP 4",
+          description: "Construction Start 2026/2027 - NO Safe Harbor",
+          reason: "Payment date after Dec 31, 2025 - cannot qualify for FEOC exemption"
+        };
+      }
+      
+      // Group 1: Small projects with safe harbor
+      if (projectData.capacity <= 1.5 && paymentDate <= dec31_2025) {
+        return {
+          id: 1,
+          name: "GROUP 1",
+          description: "≤1.5 MW AC - Safe Harbor in 2025",
+          reason: "Small project can use 5% safe harbor for both FEOC and ITC/PTC"
+        };
+      }
+      
+      // Large projects (>1.5 MW)
+      if (projectData.capacity > 1.5 && paymentDate <= dec31_2025) {
+        // Group 2: Can do physical work by 7/4/26
+        if (projectData.physicalWorkBy726) {
+          return {
+            id: 2,
+            name: "GROUP 2",
+            description: "> 1.5 MW AC - Safe Harbor + Physical Work",
+            reason: "Can achieve both FEOC exemption (5% safe harbor) and ITC/PTC BOC (physical work by 7/4/26)"
+          };
+        } else {
+          // Group 3: Cannot do physical work by 7/4/26
+          return {
+            id: 3,
+            name: "GROUP 3",
+            description: "> 1.5 MW AC - Safe Harbor Only (High Risk)",
+            reason: "Can only achieve FEOC exemption. ITC/PTC BOC at risk due to inability to complete physical work by 7/4/26"
+          };
+        }
+      }
+      
+      return null;
+    };
+
+    const projectGroup = determineGroup();
+
     const handleCalculate = () => {
       if (!selectedProject) {
         const newProject = {
           ...projectData,
-          id: projects.length + 1
+          id: projects.length + 1,
+          group: projectGroup?.id
         };
         setProjects([...projects, newProject]);
-        alert('Project added successfully!');
+        alert(`Project added successfully and assigned to ${projectGroup?.name}!`);
       }
     };
 
     return (
       <div className="space-y-6">
         <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-          <h3 className="text-xl font-bold text-gray-900 mb-6">Safe Harbor Calculator</h3>
+          <h3 className="text-xl font-bold text-gray-900 mb-6">Safe Harbor Calculator & Group Assignment</h3>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
@@ -327,6 +692,23 @@ const SafeHarborComplianceSystem = () => {
                 placeholder="Texas"
               />
             </div>
+
+            {projectData.capacity > 1.5 && new Date(projectData.paymentDate) <= new Date('2025-12-31') && (
+              <div className="md:col-span-2">
+                <label className="flex items-center gap-3 p-4 bg-amber-50 rounded-lg border-2 border-amber-300 cursor-pointer hover:bg-amber-100">
+                  <input
+                    type="checkbox"
+                    checked={projectData.physicalWorkBy726}
+                    onChange={(e) => setProjectData({...projectData, physicalWorkBy726: e.target.checked})}
+                    className="w-5 h-5"
+                  />
+                  <div>
+                    <p className="font-semibold text-amber-900">Can complete physical work by July 4, 2026?</p>
+                    <p className="text-sm text-amber-700">Foundation excavation, anchor bolts, concrete pads, racking installation</p>
+                  </div>
+                </label>
+              </div>
+            )}
           </div>
 
           {!selectedProject && (
@@ -334,10 +716,44 @@ const SafeHarborComplianceSystem = () => {
               onClick={handleCalculate}
               className="mt-6 px-6 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700"
             >
-              Add Project
+              Add Project & Assign Group
             </button>
           )}
         </div>
+
+        {projectGroup && (
+          <div className={`bg-white p-6 rounded-lg shadow-md border-2 ${
+            projectGroup.id === 1 ? 'border-green-500' :
+            projectGroup.id === 2 ? 'border-green-500' :
+            projectGroup.id === 3 ? 'border-red-500' :
+            'border-gray-900'
+          }`}>
+            <div className="flex items-start gap-4">
+              <div className={`p-3 rounded-lg ${
+                projectGroup.id === 1 || projectGroup.id === 2 ? 'bg-green-100' :
+                projectGroup.id === 3 ? 'bg-red-100' :
+                'bg-gray-900 text-white'
+              }`}>
+                <AlertCircle size={32} className={
+                  projectGroup.id === 1 || projectGroup.id === 2 ? 'text-green-600' :
+                  projectGroup.id === 3 ? 'text-red-600' :
+                  'text-white'
+                } />
+              </div>
+              <div className="flex-1">
+                <h4 className="text-lg font-bold text-gray-900">Project Classification: {projectGroup.name}</h4>
+                <p className="text-gray-700 mt-1">{projectGroup.description}</p>
+                <p className="text-sm text-gray-600 mt-2"><span className="font-semibold">Reason:</span> {projectGroup.reason}</p>
+                <button
+                  onClick={() => setActiveTab('portfolio')}
+                  className="mt-3 text-blue-600 hover:text-blue-800 text-sm font-semibold"
+                >
+                  View {projectGroup.name} Details in Portfolio Strategy →
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
           <h3 className="text-xl font-bold text-gray-900 mb-4">Results</h3>
@@ -790,6 +1206,16 @@ Date: _______________              Date: _______________
             Dashboard
           </button>
           <button
+            onClick={() => setActiveTab('portfolio')}
+            className={`flex-1 px-4 py-3 rounded-md font-semibold transition-colors ${
+              activeTab === 'portfolio'
+                ? 'bg-blue-600 text-white'
+                : 'text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            Portfolio Strategy
+          </button>
+          <button
             onClick={() => setActiveTab('calculator')}
             className={`flex-1 px-4 py-3 rounded-md font-semibold transition-colors ${
               activeTab === 'calculator'
@@ -823,6 +1249,7 @@ Date: _______________              Date: _______________
 
         <div>
           {activeTab === 'dashboard' && <Dashboard />}
+          {activeTab === 'portfolio' && <PortfolioStrategy />}
           {activeTab === 'calculator' && <Calculator />}
           {activeTab === 'contract' && <ContractGenerator />}
           {activeTab === 'guidance' && <Guidance />}
